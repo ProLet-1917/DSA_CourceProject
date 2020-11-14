@@ -25,7 +25,7 @@ const App = () => {
       {stationCnts}
       <br/>
       {}
-
+      <script type="module" src="main.ts"> </script>
     </div>
 
   )
