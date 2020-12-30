@@ -1,0 +1,20 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<!--重要meta, 必须!-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0,shrink-to-fit=no"/>
+<title>SUBWAY</title>
+</head>
+<body>
+<div id="mysubway"></div>
+
+<script src="https://webapi.amap.com/subway?v=1.0&amp;key=5f9f571c1e5291573744a37de7128d46&amp;callback=cbk"></script>
+<script type="text/javascript">
+    window.cbk = function(){
+        var mysubway = subway("mysubway", {
+            easy: 1
+        });
+    };
+</script>
+</body>
+</html>

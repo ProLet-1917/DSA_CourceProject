@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="us">
+
+<head>
+	<meta charset="utf-8">
+	<title>query</title>
+	<link href="./jq/jquery-ui.css" rel="stylesheet">
+
+ <script src="../external/jquery/jquery.js"></script>
+ <script src="./jq/jquery-ui.min.js"></script>
+ <!-- 新 Bootstrap4 核心 CSS 文件 -->
+ <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+ <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-table/1.18.1/bootstrap-table.css" rel="stylesheet">
+ <!-- bootstrap.bundle.min.js 用于弹窗、提示、下拉菜单，包含了 popper.min.js -->
+ <script src="https://cdn.staticfile.org/popper.js/1.15.0/umd/popper.min.js"></script>
+ 
+ <!-- 最新的 Bootstrap4 核心 JavaScript 文件 -->
+ <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+ <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap-table/1.18.1/bootstrap-table.min.js"></script>
+ 
+ 
+ 
+ <script type="text/javascript" src="https://webapi.amap.com/subway?v=1.0&key=您申请的key值&callback=cbk"></script>
+ <script src="./edge.js"></script>
+ <script src="./station.js"></script>
+ <script src="./stationsGraph.js"></script>
+</head>
+
+
+	<div class="jumbotron-">
+		<h1 class="display-4">Welcome to Beijing Subway Query System!</h1>
+		<p class="lead">邱时 18072002</p>
+		<hr class="my-4">
+		<p>2020 powered by jQuery & Bootstrap4</p>
+	</div> 
+
+	<h2>导入地铁数据</h2>
+	<input type='file' class='btn btn-primary' accept='text/plain' onchange='openFile()'><br>
+	<br>
+	
+	<div class="alert alert-success alert-dismissible fade show" id='success' style="display: none;" role="alert">
+		<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+			<span aria-hidden="true">&times;</span>
+			<span class="sr-only">Close</span>
+		</button>
+		<strong>成功！</strong> 已加载地铁信息
+	</div>
+	<div class="alert alert-danger alert-dismissible fade show" id='danger' style="display: none;" role="alert">
+		<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+			<span aria-hidden="true">&times;</span>
+			<span class="sr-only">Close</span>
+		</button>
+		<strong>错误！</strong> 地铁信息加载失败
+	</div>
+
+
+	<h2>输入站点：</h2>
+	<form>
+		<div class="form-group">
+			<label for="text">Departure:</label>
+			<input type="text" class="form-control" id="departure" placeholder="Enter departure">
+		</div>
+		<div class="form-group">
+			<label for="text">Destination:</label>
+			<input type="text" class="form-control" id="destination" placeholder="Enter destination">
+		</div>
+		<button type="button" id="submit" class="btn btn-primary">查找最短路径</button>
+		<button type="button" id="faresheet" class="btn btn-primary">输出票价表</button>
+		
+	</form>
+	</div>
+
+	<div class="alert alert-primary alert-dismissible fade show" id='path' style="display: none;" role="alert">
+		<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+			<span aria-hidden="true">&times;</span>
+			<span class="sr-only">Close</span>
+		</button>
+		最短路径：<strong id="dijpath"></strong> 
+	</div>	
+
+	<div class="alert alert-secondary alert-dismissible fade show" id='fare' style="display: none;" role="alert">
+		<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+			<span aria-hidden="true">&times;</span>
+			<span class="sr-only">Close</span>
+		</button>
+		行程：<strong id="dist"></strong>   票价花费：<strong id="fee"></strong> 
+	</div>
+	<br>
+	<div id="faretable" style="display: none;">
+		<h2>票价表</h2>
+		<table class="table table-striped" id="table1">
+		</table>
+	</div>
+	
+
+
+</body>
+
+
+<!-- <script src="./subwayData.js"></script> -->
+<script type="text/javascript">
+	class SubwayData {
+
+		constructor() {
+			this.graph = new StationsGraph();
+			this.allLines = [];
+			this.lineInfo = [];
+		};
+
+		ReadLines(reader) {
+			var subwayInfoArray = reader.result.split("\n");
+			var lineAmount = subwayInfoArray[0];
+			//切割并读入每一条线
+			for (let i = 1; i <= lineAmount; i++) {
+				//读入lineInfo
+				let lineInfoArray = subwayInfoArray[i].toString().split(",");
+				this.lineInfo.push([lineInfoArray[0], lineInfoArray[1], lineInfoArray[2]]); //编号 线路名称 线站点数
+				//读入Stations
+				for (let j = 3; j < lineInfoArray.length; j += 2) {
+					let stationNew = this.graph.StationAdd(lineInfoArray[j], lineInfoArray[1]);//自带检测
+
+					if (j > 3) {  //若当前添加的站点不是第一站，建立与上一站的双向边
+						this.graph.EdgeAdd(lineInfoArray[j - 2], lineInfoArray[j], Number(lineInfoArray[j - 1]));
+						this.graph.EdgeAdd(lineInfoArray[j], lineInfoArray[j - 2], Number(lineInfoArray[j - 1]));
+					}
+				}
+			}
+			//debugger;
+		}
+
+		Query(from, to) {
+
+			let pathArray = new Array();
+			let curStation = this.graph.StationGet(to);
+			this.graph.Dijkstra(from);
+			do {
+				pathArray.push(curStation?.name);
+				curStation = this.graph.StationGet(curStation.preStation);
+				//debugger;
+			}
+			while (curStation.preStation != undefined);
+			pathArray.push(curStation.name); //加入始发站
+			
+			return pathArray.reverse();
+		}
+	}
+
+	//初始化总数据结构
+	let subwayData = new SubwayData();
+	let pathsData = new Array();
+	let tableColumns = [
+               
+				{field: 'id', title: '序号', sortable: true},
+				{field: 'name', title: '目的地', sortable: true},
+                {field: 'distance', title: '最短距离', sortable: true},
+                {field: 'fare', title: '最低票价', sortable: true},
+            ];
+			$('#table1').bootstrapTable({//表格初始化
+                columns: tableColumns,  //表头
+                data: undefined, //通过ajax返回的数据
+                width:300,
+                height:268,
+                method: 'get',
+                pageSize: 3,
+                pageNumber: 1,
+                pageList: [],
+                cache: false,
+                striped: true,
+                pagination: true,
+                sidePagination: 'client',
+                search: false,
+                showRefresh: false,
+                showExport: false,
+                showFooter: true,
+                // exportTypes: ['csv', 'txt', 'xml'],
+                clickToSelect: false,
+            });
+	//读取txt
+	var openFile = () => {
+		var input = event.target;
+		var reader = new FileReader();
+
+		reader.onload = () => {
+			if (reader.result) {
+				//读入数据txt，数据都存在subwaydata
+				subwayData.ReadLines(reader);
+				//subwayData.Query()
+			}
+			$("#success").show(100);
+			//$("#output").html(reader.result);
+		}
+		reader.readAsText(input.files[0]);
+	};
+	//query
+	$("#submit").click(() => {
+
+		var departure = $("#departure").val();
+		var destination = $("#destination").val();
+		var pathArray = subwayData.Query(departure, destination);
+		var destStation= subwayData.graph.StationGet(destination);
+
+		$("#dijpath").html(() => {
+			return pathArray.join(" ==> ");
+		});
+		$("#path").show(100);
+
+		$("#dist").html(destStation.distance + "km");
+		$("#fee").html(destStation.fare + "￥");
+		$("#fare").show(100);
+
+		
+		let index = 0;
+		for(const iter of subwayData.graph.stationArray)
+		{
+			if(iter.name == departure) continue;
+			let data = {}
+			data["id"] = index++;
+			data["name"] = iter.name;
+			data["distance"] = iter.distance;
+			data["fare"] = iter.fare;
+			pathsData.push(data);
+		}
+		$('#table1').bootstrapTable("load", pathsData);
+		
+		pathsData = undefined;
+
+	});
+	$("#faresheet").click(
+		() => {$('#faretable').show(100);}
+	);
+	
+</script>
+
+</html>
