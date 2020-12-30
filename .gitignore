@@ -31,5 +31,6 @@
 *.out
 *.app
 
-node_modules
-dsa-app
+# 忽略指定文件夹
+node_modules/
+dsa-app/
